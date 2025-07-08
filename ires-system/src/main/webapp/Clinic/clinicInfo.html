@@ -155,6 +155,10 @@
                         <span id="addressTown"></span>
                         <span id="addressRoad"></span>
                     </p>
+                    <p>
+                        <span id="latitude" style="display: none;"></span>
+                        <span id="longitude" style="display: none;"></span>
+                    </p>
                     <p><label for="web">官方網址：</label><span id="web"></span></p>
                     <p><label for="registrationFee">掛號費用：</label><span id="registrationFee"></span></p>
                     <p><label for="memo">備註：</label><span id="memo"></span></p>
@@ -178,7 +182,10 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td id="morning">早上</td>
+                                <td>
+                                    <p>上午</p>
+                                    <p id="morning"></p>
+                                </td>
                                 <td id="morning-1"></td>
                                 <td id="morning-2"></td>
                                 <td id="morning-3"></td>
@@ -188,7 +195,10 @@
                                 <td id="morning-7"></td>
                             </tr>
                             <tr>
-                                <td id="afternoon">下午</td>
+                                <td>
+                                    <p>下午</p>
+                                    <p id="afternoon"></p>
+                                </td>
                                 <td id="afternoon-1"></td>
                                 <td id="afternoon-2"></td>
                                 <td id="afternoon-3"></td>
@@ -198,7 +208,10 @@
                                 <td id="afternoon-7"></td>
                             </tr>
                             <tr>
-                                <td id="night">晚上</td>
+                                <td>
+                                    <p>晚間</p>
+                                    <p id="night"></p>
+                                </td>
                                 <td id="night-1"></td>
                                 <td id="night-2"></td>
                                 <td id="night-3"></td>
@@ -211,7 +224,7 @@
                     </table>
                 </div>
 
-                <div class="form-overlay" id="editOverlay">
+                <div class="form-overlay" id="editBasicOverlay">
                     <div class="form-popup" id="editBasicInfoForm">
                         <p>
                             <label for="name">診所名稱：</label>
@@ -244,6 +257,13 @@
                             <input type="text" id="editAddressRoad" name="address" placeholder="請輸入路名及門牌號碼，此為必填欄位" required>
                         </p>
                         <p>
+                            <label>若變更地址請點擊此按鈕更新地圖位置：</label>
+                            <input type="hidden" id="editLatitude">
+                            <input type="hidden" id="editLongitude">
+                            <button id="geolocationBtn">更新地圖</button>
+                        </p>
+                        <div id="mapPreview"></div>
+                        <p>
                             <label for="web">官方網址：</label>
                             <input type="text" id="editWeb">
                         </p>
@@ -261,53 +281,71 @@
                     </div>
                 </div>
 
-                <div class="form-popup" id="editBusinessHoursForm">
-                    <table class="editBusinessHours">
-                        <thead>
-                            <tr>
-                                <th>時段/星期</th>
-                                <th>一</th>
-                                <th>二</th>
-                                <th>三</th>
-                                <th>四</th>
-                                <th>五</th>
-                                <th>六</th>
-                                <th>日</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>早上</td>
-                                <td><input type="checkbox" name="morning[1]"></td>
-                                <td><input type="checkbox" name="morning[2]"></td>
-                                <td><input type="checkbox" name="morning[3]"></td>
-                                <td><input type="checkbox" name="morning[4]"></td>
-                                <td><input type="checkbox" name="morning[5]"></td>
-                                <td><input type="checkbox" name="morning[6]"></td>
-                                <td><input type="checkbox" name="morning[7]"></td>
-                            </tr>
-                            <tr>
-                                <td>下午</td>
-                                <td><input type="checkbox" name="afternoon[1]"></td>
-                                <td><input type="checkbox" name="afternoon[2]"></td>
-                                <td><input type="checkbox" name="afternoon[3]"></td>
-                                <td><input type="checkbox" name="afternoon[4]"></td>
-                                <td><input type="checkbox" name="afternoon[5]"></td>
-                                <td><input type="checkbox" name="afternoon[6]"></td>
-                                <td><input type="checkbox" name="afternoon[7]"></td>
-                            </tr>
-                            <tr>
-                                <td>晚上</td>
-                                <td><input type="checkbox" name="evening[1]"></td>
-                                <td><input type="checkbox" name="evening[2]"></td>
-                                <td><input type="checkbox" name="evening[3]"></td>
-                                <td><input type="checkbox" name="evening[4]"></td>
-                                <td><input type="checkbox" name="evening[5]"></td>
-                                <td><input type="checkbox" name="evening[6]"></td>
-                                <td><input type="checkbox" name="evening[7]"></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="form-overlay" id="editHoursOverlay"></div>
+                    <div class="form-popup" id="editBusinessHoursForm">
+                        <table class="editBusinessHours">
+                            <thead>
+                                <tr>
+                                    <th>時段/星期</th>
+                                    <th>一</th>
+                                    <th>二</th>
+                                    <th>三</th>
+                                    <th>四</th>
+                                    <th>五</th>
+                                    <th>六</th>
+                                    <th>日</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <p>上午</p>
+                                        <input type="text" id="editMorning" placeholder="格式範例08:00-12:00"/>
+                                    </td>
+                                    <td><input type="checkbox" id="weekMorning1" value="1" /></td>
+                                    <td><input type="checkbox" id="weekMorning2" value="2" /></td>
+                                    <td><input type="checkbox" id="weekMorning3" value="3" /></td>
+                                    <td><input type="checkbox" id="weekMorning4" value="4" /></td>
+                                    <td><input type="checkbox" id="weekMorning5" value="5" /></td>
+                                    <td><input type="checkbox" id="weekMorning6" value="6" /></td>
+                                    <td><input type="checkbox" id="weekMorning7" value="7" /></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <p>下午</p>
+                                        <input type="text" id="editAfternoon" placeholder="格式範例13:00-17:00"/>
+                                    </td>
+                                    <td><input type="checkbox" id="weekAfternoon1" value="1" /></td>
+                                    <td><input type="checkbox" id="weekAfternoon2" value="2" /></td>
+                                    <td><input type="checkbox" id="weekAfternoon3" value="3" /></td>
+                                    <td><input type="checkbox" id="weekAfternoon4" value="4" /></td>
+                                    <td><input type="checkbox" id="weekAfternoon5" value="5" /></td>
+                                    <td><input type="checkbox" id="weekAfternoon6" value="6" /></td>
+                                    <td><input type="checkbox" id="weekAfternoon7" value="7" /></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <p>晚間</p>
+                                        <input type="text" id="editNight" placeholder="格式範例18:00-21:00"/>
+                                    </td>
+                                    <td><input type="checkbox" id="weekNight1" value="1" /></td>
+                                    <td><input type="checkbox" id="weekNight2" value="2" /></td>
+                                    <td><input type="checkbox" id="weekNight3" value="3" /></td>
+                                    <td><input type="checkbox" id="weekNight4" value="4" /></td>
+                                    <td><input type="checkbox" id="weekNight5" value="5" /></td>
+                                    <td><input type="checkbox" id="weekNight6" value="6" /></td>
+                                    <td><input type="checkbox" id="weekNight7" value="7" /></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div id="Btn">
+                            <button id="saveEditHoursBtn">儲存</button>
+                            <button id="cancelEditHoursBtn">取消</button>
+                        </div>
+                        
+
+                    </div>
                 </div>
          
             </section>
