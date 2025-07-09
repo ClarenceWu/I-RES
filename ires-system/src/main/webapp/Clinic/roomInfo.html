@@ -91,6 +91,13 @@
         .status-cancelled {
             color: gray;
             font-weight: bold;
+            text-decoration: line-through;
+        }
+
+        .status-finished {
+            color: darkblue;
+            font-weight: bold;
+            background-color: #f0f8ff;
         }
 
         .action-buttons {
@@ -167,6 +174,19 @@
         .call-btn:hover {
             background-color: #1e88e5;
             transform: scale(1.05);
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 4px solid #ccc;
+            border-top-color: #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 40px auto;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -298,8 +318,10 @@
                 <input type="text" placeholder="搜尋病人（姓名或號碼）" id="searchInput" onkeyup="filterPatients()">
             </div>
 
-
-            <div id="clinic-info"></div>
+            <div id="clinic-info">
+                <div id="clinic-loader" class="spinner" style="display: none;"></div>
+                <div id="clinic-content"></div>
+            </div>
 
             <div id="qrcodeModal" class="modal">
                 <div class="modal-content">
@@ -353,20 +375,27 @@
     let allData = {};
 
     function fetchData(time) {
-        //return fetch(`${window.location.origin}/ires-system/appointment?action=apiToday&period=${time}`)
         return fetch(`/ires-system/appointment/apiToday?period=${time}`)
             .then(response => response.json())
-            .then(appointments => {
+            .then(result => {
+                if (result.status !== "success") {
+                    throw new Error(result.message || "查詢失敗");
+                }
+
+                const appointments = result.data || [];
                 const grouped = {};
 
                 appointments.forEach(app => {
                     const doctorName = (app.doctor?.doctorName ?? "未指定") + " 醫師";
 
                     if (!grouped[doctorName]) {
-                        grouped[doctorName] = [];
+                        grouped[doctorName] = {
+                            timePeriod: result.timePeriod,
+                            patients: []
+                        };
                     }
 
-                    grouped[doctorName].push({
+                    grouped[doctorName].patients.push({
                         number: String(app.reserveNo ?? "--"),
                         name: app.patient?.name ?? "匿名",
                         status: translateStatus(app.status),
@@ -378,9 +407,10 @@
                     });
                 });
 
-                return Object.entries(grouped).map(([doctor, patients]) => ({
+                return Object.entries(grouped).map(([doctor, info]) => ({
                     doctor,
-                    patients
+                    timePeriod: info.timePeriod,
+                    patients: info.patients
                 }));
             });
     }
@@ -392,59 +422,124 @@
             case 0:
                 return "未報到";
             case 2:
-                return "已完成";
-            case 3:
                 return "已取消";
+            case 3:
+                return "已完成";
             default:
                 return "未知狀態";
         }
     }
 
     async function selectTime(time) {
-        currentTime = time;
+        currentTime = time || null;
         document.getElementById("searchInput").value = "";
-        const clinicInfo = document.getElementById("clinic-info");
-        clinicInfo.innerHTML = "<p>載入中...</p>";
-        const data = await fetchData(time);
-        allData = data;
-        renderData(data);
+        const loader = document.getElementById("clinic-loader");
+        const content = document.getElementById("clinic-content");
+
+        loader.style.display = "block";
+        content.innerHTML = "";
+
+        const url = time
+            ? `/ires-system/appointment/apiToday?period=${time}`
+            : `/ires-system/appointment/apiToday`;
+
+        try {
+            const response = await fetch(url);
+            const result = await response.json();
+
+            if (result.status !== "success") {
+                alert(result.message || "查詢失敗");
+                return;
+            }
+
+            const appointments = result.data || [];
+            const grouped = {};
+
+            appointments.forEach(app => {
+                const doctorName = (app.doctor?.doctorName ?? "未指定") + " 醫師";
+
+                if (!grouped[doctorName]) {
+                    grouped[doctorName] = {
+                        timePeriod: result.timePeriod,
+                        patients: []
+                    };
+                }
+
+                grouped[doctorName].patients.push({
+                    number: String(app.reserveNo ?? "--"),
+                    name: app.patient?.name ?? "匿名",
+                    status: translateStatus(app.status),
+                    appointmentId: app.appointmentId,
+                    patientId: app.patient?.patientId,
+                    doctorId: app.doctor?.doctorId,
+                    agencyId: app.clinic?.agencyId ?? "0000000000",
+                    timePeriod: app.timePeriod
+                });
+            });
+
+            const data = Object.entries(grouped).map(([doctor, info]) => ({
+                doctor,
+                timePeriod: info.timePeriod,
+                patients: info.patients
+            }));
+
+            allData = data;
+            renderData(data);
+
+        } catch (error) {
+            console.error("查詢失敗：", error);
+            alert("無法取得資料，請稍後再試");
+        }
     }
 
     function getStatusClass(status) {
-        return status === '已報到' ? 'status-arrived' : status === '未報到' ? 'status-not-arrived' : 'status-cancelled';
+        if (status === '已報到') return 'status-arrived';
+        if (status === '未報到') return 'status-not-arrived';
+        if (status === '已取消') return 'status-cancelled';
+        if (status === '已完成') return 'status-finished';
+        return '';
     }
 
     function renderData(data) {
-        const clinicInfo = document.getElementById("clinic-info");
-        clinicInfo.innerHTML = "";
+        const loader = document.getElementById("clinic-loader");
+        const content = document.getElementById("clinic-content");
+
+        loader.style.display = "none"; // 資料載入完 → 隱藏 loading
+
         const wrapper = document.createElement("div");
         wrapper.className = "room-container";
 
-        data.forEach((room, idx) => {
+        data.forEach(room => {
             const card = document.createElement("div");
             card.className = "room-card";
             card.innerHTML = `
-                                    <div class="room-card-header">${room.doctor}</div>
-                                    <div class="room-card-body">
-                                    <div style="overflow-y: auto; max-height: 300px;">
-                                        <table>
-                                        <thead><tr><th>看診號碼</th><th>姓名</th><th>狀態</th></tr></thead>
-                                        <tbody>
-                                            ${room.patients.map(p => `
-                                            <tr><td>${p.number}</td><td>${p.name}</td><td><span class="${getStatusClass(p.status)}">${p.status}</span></td></tr>
-                                            `).join('')}
-                                        </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="action-buttons">
-                                        <button class="btn" onclick="showQRCode('${room.doctor}')">產生報到 QRCode</button>
-<!--                                        <button class="btn" onclick="callNext('${room.doctor}')">診間叫號</button>-->
-                                        <button class="btn" onclick="callNext('${room.doctor}', ${room.timePeriod})">診間叫號</button>
-                                    </div>
-                                    </div>`;
+            <div class="room-card-header">${room.doctor}</div>
+            <div class="room-card-body">
+                <div style="overflow-y: auto; max-height: 300px;">
+                    <table>
+                        <thead><tr><th>看診號碼</th><th>姓名</th><th>狀態</th></tr></thead>
+                        <tbody>
+                            ${room.patients.map(p => `
+                                <tr>
+                                    <td>${p.number}</td>
+                                    <td>${p.name}</td>
+                                    <td><span class="${getStatusClass(p.status)}">${p.status}</span></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn" onclick="showQRCode('${room.doctor}')">產生報到 QRCode</button>
+                    <button class="btn" onclick="callNext('${room.doctor}', ${room.timePeriod})">診間叫號</button>
+                </div>
+            </div>
+        `;
             wrapper.appendChild(card);
         });
-        clinicInfo.appendChild(wrapper);
+
+        content.innerHTML = "";            // 清掉上次 render 的卡片
+        content.appendChild(wrapper);     // 插入新卡片
     }
 
     function filterPatients() {
@@ -504,14 +599,16 @@
         const room = allData.find(r => r.doctor === doctorName);
         if (!room) return alert("找不到該診間資料");
 
-        // 時段代碼：早上=1、下午=2、晚上=3
-        const timePeriodMap = {morning: "1", afternoon: "2", evening: "3"};
-        const periodCode = timePeriodMap[currentTime] || "1";
+        const timePeriodMap = { morning: "1", afternoon: "2", evening: "3" };
+        const timePeriod = room.timePeriod ?? timePeriodMap[currentTime] ?? "1";
 
-        const timePeriod = periodCode;
+        console.log("callNext - 後端傳入 timePeriod:", room.timePeriod);
+        console.log("callNext - 最終使用 timePeriod:", timePeriod);
+
         const doctorId = room.patients?.[0]?.doctorId ?? null;
-        const today = new Date().toISOString().slice(0, 10);
-
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        console.log("callNext - today:", today);
         const extendedRoom = {
             ...room,
             doctorId,
@@ -520,7 +617,7 @@
         };
 
         localStorage.setItem("callRoom", JSON.stringify(extendedRoom));
-        window.location.href = "callRoom.html";
+        window.open("callRoom.html", "_blank", "width=800,height=600");
     }
 
     function goToNotifyPage() {
@@ -549,6 +646,10 @@
         const name = sessionStorage.getItem("clinicName");
         if (name) {
             document.getElementById("clinicName").textContent = name;
+            selectTime();
+            setInterval(() => {
+                selectTime();
+            }, 10000);
         } else {
             // 未登入或資料遺失，導回登入頁
             alert("尚未登入");

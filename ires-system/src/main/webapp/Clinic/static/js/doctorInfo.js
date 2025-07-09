@@ -1,4 +1,4 @@
-    
+        
     //AJAX請求：showAll
     function fetchShowAll(){
         fetch('/ires-system/doctor/showAll', {
@@ -8,7 +8,6 @@
 
             .then(resp => resp.json())
             .then(result => {
-                console.log(result);
                 if (result.statusCode === 200) {
                     const doctors = result.data|| [];
                     //先清空原有資料
@@ -18,26 +17,22 @@
                         const eduHtml = doctor.education && doctor.education.length > 0 ? `<p><span class="label">學歷：</span><span class="edu">${doctor.education.join("、")}</span></p>`: "";
                         const expHtml = doctor.experience && doctor.experience.length > 0 ? `<p><span class="label">經歷：</span><span class="exp">${doctor.experience.join("、")}</span></p>`: "";
                         const memoHtml = doctor.memo && doctor.memo.length > 0 ? `<p><span class="label">專長：</span><span class="memo">${doctor.memo.join("、")}</span></p>`: "";
-                        // const eduHtml = (doctor.education || []).map(e => `<p><span class="label">學歷：</span><span class="edu">${e}</span></p>`).join("");
-                        // const expHtml = (doctor.experience || []).map(e => `<p><span class="label">經歷：</span><span class="exp">${e}</span></p>`).join("");
-                        // const memoHtml = (doctor.memo || []).map(e => `<p><span class="label">專長：</span><span class="memo">${e}</span></p>`).join("");
                         const picSrc = doctor.profilePicture ? `data:image/png;base64,${doctor.profilePicture}` : "";
 
-                        const cardHtml = `
-                            <div class="card" data-doctor-id="${doctor.doctorId}">
-                                <button class="editBtn">編輯</button>
-                                <button class="deleteBtn">刪除</button>
-                                <p><span class="name">${doctor.doctorName}</span> 醫師</p>
-                                ${picSrc ? `<img src="${picSrc}" alt="照片未上傳" style="max-width: 100px;">` : ""}
-                                ${eduHtml}
-                                ${expHtml}
-                                ${memoHtml}
-                                ${doctor.time ? `<p><span class="label">看診時間：</span><span class="time">${doctor.time}</span></p>` : ""}
-                            </div>
-                        `;
+                            const cardHtml = `
+                                <div class="card" data-doctor-id="${doctor.doctorId}">
+                                    <button class="editBtn">編輯</button>
+                                    <button class="deleteBtn">刪除</button>
+                                    <p><span class="name">${doctor.doctorName}</span> 醫師</p>
+                                    ${picSrc ? `<img src="${picSrc}" alt="照片未上傳" style="max-width: 100px;">` : ""}
+                                    ${eduHtml}
+                                    ${expHtml}
+                                    ${memoHtml}
+                                </div>
+                            `;
 
-                        $("#container").append(cardHtml);
-                    })
+                            $("#container").append(cardHtml);
+                        })
                 }else {
                     alert(result.message);
                 }
@@ -60,11 +55,13 @@
         .then(result => {
             if (result.statusCode === 200) {
                 alert(result.message);
-                $("#addOverlay").hide();
+                $("#addOverlay").removeClass("show");
+                $("#addForm").hide();
                 fetchShowAll();
             } else {
                 alert(result.message + "，請稍後再試！");
-                $("#addOverlay").hide();
+                $("#addOverlay").removeClass("show");
+                $("#addForm").hide();
             }
         });
     }
@@ -81,17 +78,19 @@
         .then(result => {
             if (result.statusCode === 200) {
                 alert(result.message);
-                $("#editOverlay").hide();
+                $("#editOverlay").removeClass("show");
+                $("#editForm").hide();
                 fetchShowAll();
             } else {
                 alert(result.message + "，請稍後再試！");
-                $("#editOverlay").hide();
+                $("#editOverlay").removeClass("show");
+                $("#editForm").hide();
             }
         });
     }
    
     
-    //清除新增表單
+    //清除表單內容
     function clearFormValues(prefix){
         $(`#${prefix}Name`).val("");
         $(`#${prefix}ProfilePicture`).val("");
@@ -102,8 +101,6 @@
             $(`#${prefix}Exp${i}`).val("");
             $(`#${prefix}Memo${i}`).val("");
         });
-        
-        $(`#${prefix}Time`).val("");
     }
 
     
@@ -114,8 +111,7 @@
         const edu = [$(`#${prefix}Edu1`).val(), $(`#${prefix}Edu2`).val(), $(`#${prefix}Edu3`).val()].filter(Boolean);
         const exp = [$(`#${prefix}Exp1`).val(), $(`#${prefix}Exp2`).val(), $(`#${prefix}Exp3`).val()].filter(Boolean);
         const memo = [$(`#${prefix}Memo1`).val(), $(`#${prefix}Memo2`).val(),$(`#${prefix}Memo3`).val()].filter(Boolean);
-        const time = $(`#${prefix}Time`).val().trim();
-        return { name, edu, exp, memo, time };
+        return { name, edu, exp, memo };
     }
 
     // 預覽新增照片
@@ -169,6 +165,7 @@
         // 不重複後開始新增，顯示新增表單(帶入輸入的姓名)
         clearFormValues("add");
         $("#addName").val(name);
+        $("#addForm").show();
         $("#addOverlay").addClass("show");
 
         // 滾到表單內部頂部，並強制視窗到最上方
@@ -180,12 +177,13 @@
     $("#cancelAddBtn").on("click", function () {
         clearFormValues("add");
         $("#addOverlay").removeClass("show");
+        $("#addForm").hide();
     });    
 
     // 按下儲存將填入的資料送至後端，重發請求取得所有醫師資料
     $("#saveAddBtn").on("click", function () {
 
-        const { name, edu, exp, memo, time } = getFormValues("add");
+        const { name, edu, exp, memo} = getFormValues("add");
         if (!name) {
             alert("姓名不可為空白！");
             return;
@@ -205,7 +203,7 @@
             return;
         }
 
-        const file = document.querySelector('#addProfilePicture').files[0];
+        const file = document.querySelector("#addProfilePicture").files[0];
         if(file){
             const fileReader = new FileReader();
             fileReader.addEventListener("load", function(e){
@@ -216,7 +214,6 @@
                     experience: exp,
                     memo: memo,
                     profilePicture: imageBase64,
-                    time: time
                 })
             })
             fileReader.readAsDataURL(file);
@@ -227,7 +224,6 @@
                 experience: exp,
                 memo: memo,
                 profilePicture: "",
-                time: time
             })
         }
     })
@@ -247,7 +243,6 @@
         const edu = card.find(".edu").map(function () { return $(this).text(); }).get();
         const exp = card.find(".exp").map(function () { return $(this).text(); }).get();
         const memo = card.find(".memo").map(function () { return $(this).text(); }).get();
-        const time = card.find(".time").text().trim();
 
         $("#editName").val(name);
         $("#editEdu1").val(edu[0] || "");
@@ -259,8 +254,8 @@
         $("#editMemo1").val(memo[0] || "");
         $("#editMemo2").val(memo[1] || "");
         $("#editMemo3").val(memo[2] || "");
-        $("#editTime").val(time);
 
+        $("#editForm").show();
         $("#editOverlay").addClass("show");
         // 滾動表單內部到頂部
         $("#editOverlay .form-popup").scrollTop(0);
@@ -275,12 +270,12 @@
     $("#cancelEditBtn").on("click", function () {
         clearFormValues("edit");
         $("#editOverlay").removeClass("show");
-
+        $("#editForm").hide();
     });
 
     // 儲存編輯
     $("#saveEditBtn").on("click", function () {
-        const { name, edu, exp, memo, time } = getFormValues("edit");
+        const { name, edu, exp, memo} = getFormValues("edit");
         if (!name) {
             alert("姓名不可為空白！");
             return;
@@ -300,7 +295,6 @@
                     experience: exp,
                     memo: memo,
                     profilePicture: imageBase64,
-                    time: time
                 })
             })
             fileReader.readAsDataURL(file);
@@ -312,7 +306,6 @@
                 experience: exp,
                 memo: memo,
                 profilePicture: originalProfilePicture,
-                time: time
             })
         }
     });
@@ -370,7 +363,6 @@
                                 ${eduHtml}
                                 ${expHtml}
                                 ${memoHtml}
-                                ${doctor.time ? `<p><span class="label">看診時間：</span><span class="time">${doctor.time}</span></p>` : ""}
                             </div>
                         `;
                         $("#container").append(cardHtml);

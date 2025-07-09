@@ -1,6 +1,7 @@
 package web.appointment.controller;
 
 import java.text.SimpleDateFormat;
+import java.time.LocalTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +29,7 @@ import web.appointment.dao.AppointmentDAO;
 import web.appointment.entity.Appointment;
 import web.appointment.service.AppointmentService;
 import web.clinic.entity.Clinic;
+import web.clinic.service.ClinicService;
 
 @Controller
 @RequestMapping("/appointment")
@@ -39,59 +41,79 @@ public class AppointmentController {
     @Autowired
     private AppointmentDAO appointmentDAO;
 
+    @Autowired
+    private ClinicService clinicService;
+
     @GetMapping("/apiToday")
     @ResponseBody
-    public List<Appointment> getTodayAppointments(
+    public ResponseEntity<Map<String, Object>> getTodayAppointments(
             @RequestParam(value = "period", required = false) String period,
-            @RequestParam(value = "date", required = false) String dateStr
+            @RequestParam(value = "date", required = false) String dateStr,
+            HttpSession session
     ) {
+        Map<String, Object> response = new HashMap<>();
         Date baseDate;
+
+        // 解析日期參數
         if (dateStr != null) {
             try {
                 baseDate = new SimpleDateFormat("yyyy-MM-dd").parse(dateStr);
             } catch (Exception e) {
-                baseDate = new Date();
+                response.put("status", "error");
+                response.put("message", "日期格式錯誤，應為 yyyy-MM-dd");
+                return ResponseEntity.badRequest().body(response);
             }
         } else {
             baseDate = new Date();
         }
 
         java.sql.Date queryDate = new java.sql.Date(normalizeDate(baseDate).getTime());
-
         int timePeriod = 1;
-        if ("afternoon".equalsIgnoreCase(period)) {
-            timePeriod = 2;
-        } else if ("evening".equalsIgnoreCase(period)) {
-            timePeriod = 3;
+        List<Appointment> appointments;
+        Clinic clinic = (Clinic) session.getAttribute("clinic");
+
+        if (period != null && !period.isBlank()) {
+            // 有指定時段
+            if ("afternoon".equalsIgnoreCase(period)) {
+                timePeriod = 2;
+            } else if ("evening".equalsIgnoreCase(period)) {
+                timePeriod = 3;
+            }
+
+            if (clinic != null && clinic.getClinicId() > 0) {
+                int clinicId = clinic.getClinicId();
+                appointments = service.getAppointmentsByClinicDateAndPeriod(clinicId, queryDate, timePeriod);
+            } else {
+                appointments = service.getAppointmentsByDateAndPeriod(queryDate, timePeriod);
+            }
+        } else {
+            // 沒指定時段，從 session 判斷診所與時段
+            if (clinic == null || clinic.getClinicId() == null) {
+                response.put("status", "error");
+                response.put("message", "Session 未包含 clinicId，請重新登入");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
+
+            int clinicId = clinic.getClinicId();
+            timePeriod = service.resolveTimePeriod(clinic, LocalTime.now());
+
+            appointments = service.getAppointmentsByClinicDateAndPeriod(clinicId, queryDate, timePeriod);
         }
 
-        return service.getAppointmentsByDateAndPeriod(queryDate, timePeriod);
+        response.put("status", "success");
+        response.put("message", "查詢成功");
+        response.put("timePeriod", timePeriod);
+        response.put("data", appointments);
+        return ResponseEntity.ok(response);
     }
 
-//    @GetMapping("/history")
-//    @ResponseBody
-//    public ResponseEntity<?> getAppointmentHistory(@RequestParam int patientId) {
-//        List<Appointment> list = service.getHistoryByPatientId(patientId);
-//        List<Map<String, Object>> result = list.stream().map(a -> {
-//            Map<String, Object> map = new HashMap<>();
-//            map.put("appointmentId", a.getAppointmentId());
-//            map.put("appointmentDate", a.getAppointmentDate().toString()); // yyyy-MM-dd
-//            map.put("timePeriod", a.getTimePeriod());
-//            map.put("doctorId", a.getDoctorId());
-//            map.put("doctorName", a.getDoctor().getDoctorName());
-//            map.put("reserveNo", a.getReserveNo());
-//            map.put("status", a.getStatus());
-//            map.put("createTime", a.getCreateTime());
-//            map.put("updateTime", a.getUpdateTime());
-//            return map;
-//        }).collect(Collectors.toList());
-//
-//        return ResponseEntity.ok(result);
-//    }
     @GetMapping("/history")
     @ResponseBody
-    public ResponseEntity<?> getAppointmentHistory(@RequestParam int patientId) {
-        List<Appointment> list = service.getHistoryByPatientId(patientId);
+    public ResponseEntity<?> getAppointmentHistory(HttpSession session, @RequestParam int patientId) {
+        Clinic clinic = (Clinic) session.getAttribute("clinic");
+        Integer clinicId = (clinic != null) ? clinic.getClinicId() : null;
+
+        List<Appointment> list = service.getHistoryByPatientId(patientId, clinicId);
         return ResponseEntity.ok(list);
     }
 
