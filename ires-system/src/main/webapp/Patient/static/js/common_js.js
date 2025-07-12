@@ -249,6 +249,10 @@ $(function () {
 });
 
 $(document).ready(function () {
+  const currentUrl = encodeURIComponent(window.location.href);
+  $(".login-dynamic-link").each(function () {
+    $(this).attr("href", `./login.html?redirect=${currentUrl}`);
+  });
   // 根據登入狀態切換 Menu 或 Login
   const patient = sessionStorage.getItem("patient");
   if (patient) {
@@ -350,6 +354,20 @@ $(document).ready(function () {
   });
 
   clinicLinks();
+  // 登出功能
+});
+$(".logout-link").on("click", function (e) {
+  e.preventDefault();
+  if (confirm("確定要登出嗎？")) {
+    $.post("/ires-system/patient/logout")
+      .done(function () {
+        sessionStorage.removeItem("patient");
+        window.location.href = "./index.html";
+      })
+      .fail(function () {
+        alert("登出失敗，請稍後再試！");
+      });
+  }
 });
 function clinicLinks() {
   const today = new Date();
@@ -393,15 +411,15 @@ function clinicLinks() {
 }
 
 const routes = {
-  '主頁': 'index.html',
-  '預約紀錄': 'reservation.html',
-  '我的收藏': 'favorites.html',
-  '通知消息': 'notification.html',
-  '帳戶設定': 'account.html',
+  主頁: "index.html",
+  預約紀錄: "reservation.html",
+  我的收藏: "favorites.html",
+  通知消息: "notification.html",
+  帳戶設定: "account.html",
 };
 
-document.querySelectorAll('.main_links li a').forEach((link) =>
-  link.addEventListener('click', (e) => {
+document.querySelectorAll(".main_links li a").forEach((link) =>
+  link.addEventListener("click", (e) => {
     e.preventDefault();
     const url = routes[link.textContent.trim()];
     if (url) window.location.href = url;

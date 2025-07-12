@@ -6,6 +6,13 @@
     $("#register").on("submit", function (e) {
       e.preventDefault();
 
+      const password = $("#password").val();
+      const confirmPassword = $("#confirm-password").val();
+      if (password !== confirmPassword) {
+        alert("密碼與確認密碼不一致，請重新輸入。");
+        return;
+      }
+
       const fileInput = $("#register_profile_picture")[0];
       const file = fileInput.files[0];
 
@@ -34,6 +41,7 @@
           relation: parseInt($("#register_relation").val()),
           bloodType: parseInt($("#register_blood_type").val()),
           notes: $("#register_notes").val(),
+          status: 1,
           profilePicture: base64Image,
         };
 
@@ -76,7 +84,15 @@
           console.log(response);
           if (response.successful) {
             sessionStorage.setItem("patient", JSON.stringify(response));
-            window.location.href = "index.html";
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirect = urlParams.get("redirect");
+
+            if (redirect) {
+              window.location.href = decodeURIComponent(redirect);
+            } else {
+              window.location.href = "index.html";
+            }
           } else {
             alert("登入失敗：" + response.message);
           }

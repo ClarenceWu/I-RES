@@ -33,7 +33,7 @@
 
 <body>
     <section id="main-wrapper" class="theme-default">
-        <header id="header">
+        <header id="header" style="position: fixed; display: flex;">
             <!--logo start-->
             <div class="brand">
                 <a href="roomInfo.html" class="logo" style="position: fixed; top: -3px; left: 10px; font-size: 24px;">
@@ -187,6 +187,8 @@
                         <table id="resultTable" class="results-table">
                             <thead>
                                 <tr>
+                                    <th>預約日期</th>
+                                    <th>預約時段</th>
                                     <th>預約號碼</th>
                                     <th>姓名</th>
                                     <th>看診醫師</th>
@@ -201,12 +203,12 @@
                         </table>
 
                         <!-- <div class="pagination"> -->
-                        <div class="form-row button-row">
+                        <!-- <div class="form-row button-row">
                             <button>&laquo;</button>
                             <button>&lsaquo;</button>
                             <button>&rsaquo;</button>
                             <button>&raquo;</button>
-                        </div>
+                        </div> -->
                     </div>
                 </div>
 
@@ -259,8 +261,14 @@
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const name = sessionStorage.getItem("clinicName");
+            const clinicAccount = sessionStorage.getItem("account");
+            const id = sessionStorage.getItem("clinicId");
+
             if (name) {
                 document.getElementById("clinicName").textContent = name;
+                document.getElementById("account").textContent = clinicAccount;
+                document.getElementById("clinicId").textContent = id;
+
             } else {
                 // 未登入或資料遺失，導回登入頁
                 alert("尚未登入");

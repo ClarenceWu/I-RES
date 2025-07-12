@@ -149,7 +149,7 @@ function loadClinics(selector, majorId = null) {
     url,
     method: "GET",
     success: function (clinics) {
-      if (Array.isArray(clinics)) {
+      if (Array.isArray(clinics) && clinics.length > 0) {
         const $wrapper = $(`${selector} .swiper-wrapper`);
         $wrapper.empty();
         for (let i = 0; i < clinics.length; i += 3) {
@@ -223,7 +223,7 @@ function loadClinics(selector, majorId = null) {
                   <img src="${
                     clinic.profilePicture
                       ? `data:image/jpeg;base64,${clinic.profilePicture}`
-                      : "static/img/1.jpeg"
+                      : "static/img/iresclinic.png"
                   }" alt="診所圖片" />
                 </div>
                 <div class="card-content">
@@ -288,6 +288,9 @@ function loadClinics(selector, majorId = null) {
             1200: { slidesPerView: 3, slidesPerGroup: 3 },
           },
         });
+      } else {
+        $(selector).closest("#rooms-suites").hide();
+        return;
       }
     },
   });
